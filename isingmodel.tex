@@ -1,0 +1,836 @@
+%%% -*-LaTeX-*-
+%%% isingmodel.tex.orig
+%%% Prettyprinted by texpretty lex version 0.02 [21-May-2001]
+%%% on Tue Oct 18 08:55:02 2022
+%%% for Steve Dunbar (sdunbar@family-desktop)
+
+\documentclass[12pt]{article}
+
+\input{../../../../etc/macros} %\input{../../../../etc/mzlatex_macros}
+\input{../../../../etc/pdf_macros}
+
+\bibliographystyle{plain}
+
+\begin{document}
+
+\myheader \mytitle
+
+\hr
+
+\sectiontitle{The Ising Model}
+
+\hr
+
+\usefirefox
+
+\hr
+
+% \visual{Study Tip}{../../../../CommonInformation/Lessons/studytip.png}
+% \section*{Study Tip}
+
+% \hr
+
+\visual{Rating}{../../../../CommonInformation/Lessons/rating.png}
+\section*{Rating} %one of
+% Everyone: contains no mathematics.
+% Student: contains scenes of mild algebra or calculus that may require guidance.
+Mathematically Mature:  may contain mathematics beyond calculus with
+proofs.  % Mathematicians Only: prolonged scenes of intense rigor.
+
+\hr
+
+\visual{Section Starter Question}{../../../../CommonInformation/Lessons/question_mark.png}
+\section*{Section Starter Question}
+
+What is a phase transition?  What causes phase transitions?  What are
+some examples of phase transitions?
+
+\hr
+
+\visual{Key Concepts}{../../../../CommonInformation/Lessons/keyconcepts.png}
+\section*{Key Concepts}
+
+\begin{enumerate}
+    \item
+        The Ising model is a lattice model of spins for atoms with
+        magnetic dipoles either up or down in some fixed direction.  The
+        Ising model exhibits a \defn{phase transition} in the
+        magnetization, a dramatic change in state as a parameter passes
+        through a critical value.
+    \item
+        It is impractical to directly compute the expected magnetization
+        since the number of configurations is too large.
+    \item
+        Estimates on rates of convergence indicate slow convergence for
+        the Ising model Metropolis algorithm considered here.  The slow
+        convergence is consistent with the number of steps needed to
+        ensure visiting most sites.
+\end{enumerate}
+
+\hr
+
+\visual{Vocabulary}{../../../../CommonInformation/Lessons/vocabulary.png}
+\section*{Vocabulary}
+\begin{enumerate}
+    \item
+        The \defn{Ising model} is a simple model of a ferromagnet.
+    \item
+        A \defn{phase transition} is a dramatic change in state as a
+        parameter passes through a critical value.
+    \item
+        The \defn{Boltzmann weight} \(
+        \operatorname{Boltz}
+        (\omega) = \EulerE^{-E(\omega)/(\text{k}_{\text{Boltz}} T)} \)
+        where \( \text{k}_{\text{Boltz}} \) is the Boltzmann constant,
+        so \( \text{k}_{\text{Boltz}} T \) has units of energy.
+    \item
+        For a configuration \( \omega \) let
+        \[
+            M(\omega) = \sum\limits_{i=1}^N \omega_{i}.
+        \]
+    \item
+        The \defn{magnetization} at temperature \( T \) is \( \E{M}_T \)
+        is the expected value of \( M(\omega) \).
+    \item
+        \defn{Glauber dynamics} is the algorithm that selects sites at
+        random in the lattice and computes magnetization in a Markov
+        chain.
+\end{enumerate}
+
+\hr
+
+\section*{Notation}
+\begin{enumerate}
+    \item
+        \( T_c \) -- the temperature above which certain materials lose
+        their permanent magnetic properties
+    \item
+        \( \text{k}_{\text{Boltz}} \) -- the Boltzmann constant from
+        statistical mechanics
+    \item
+        \( J \) -- a proportionality constant for the energy of
+        alignment
+    \item
+        \( N \) -- number of rows and columns in \( 2 \)-dimensional
+        lattice with \( N^2 \) sites
+    \item
+        \( (i,j) \) -- lattice site
+    \item
+        \( \omega_{i,j} = \pm 1 \) -- spin at site \( (i,j) \)
+    \item
+        \( \omega = (\omega_{1,1}, \omega_{1,2}, \dots, \omega_{N,N}) \)
+        -- configuration as a matrix of spins
+    \item
+        \( \Omega \) -- the set of all possible configurations
+    \item
+        \( E(\omega) \) -- magnetic energy of a configuration
+    \item
+        \( H \ge 0 \) -- the external magnetic field
+    \item
+        \( \langle i, j \rangle \) -- the set of \( 4 \) sites that are
+        periodic nearest neighbors
+    \item
+        \( \text{k}_{\text{Boltz}} \) -- Boltzmann constant
+    \item
+        \(
+        \operatorname{Boltz}
+        (\omega) = \EulerE^{-E(\omega)/(\text{k}_{\text{Boltz}} T)} \)
+        -- Boltzmann weight
+    \item
+        \( M(\omega) \) -- net spin
+    \item
+        \( \E{M}_T \) -- the expected value of \( M(\omega) \)
+    \item
+        \( z = \sum\limits_{\omega \in \Omega} \EulerE{-E(\omega)/(\text
+        {k}_{\text{Boltz}} T)} \) -- the partition function
+    \item
+        \( (i,j) \) -- random site in the matrix
+    \item
+        \( \omega'_{(i,j)} \) -- flipped sign value at \( (i,j) \)
+    \item
+        \( \Delta E \) -- change in energy from flip
+
+\end{enumerate}
+
+\visual{Mathematical Ideas}{../../../../CommonInformation/Lessons/mathematicalideas.png}
+\section*{Mathematical Ideas}
+
+Magnets are common objects but magnetism itself is enigmatic.  Heating a
+ferromagnetic material such as iron causes it to lose magnetism.  Slow
+cooling allows the material to magnetize again.  From 1922 to 1925
+Wilhelm Lenz and his student Ernst Ising developed what is now called
+the Ising model to explain this phase transition in magnetism caused by
+heating or cooling.  The Ising model connects electromagnetic theory
+with statistical mechanics.  Exploring the Ising model for the magnetic
+phase transition uses Markov chains.  The goal of this section is to
+describe applications of the Metropolis algorithm to the Ising model for
+magnetism.
+
+\subsection*{Magnetism and the Ising Model}
+
+In a magnetic material such as iron, the atoms each have a magnetic
+moment.  A piece of iron has small regions or ``domains'' that are
+completely magnetized because the atoms align in the same direction. The
+overall energy of neighboring atoms in the domain is lower when the
+moments are parallel.  If the energy of neighboring atoms and domains
+were the only consideration, a magnetic material would settle into a
+magnetized configuration, but heat tends to randomize the magnetic
+moment directions.  On a large scale, the directions of the domains are
+not aligned so average magnetization is about zero.
+
+In the physics of magnetism, the Curie temperature \( T_c \)%
+\index{Curie temperature}
+is the temperature above which certain materials lose their permanent
+magnetic properties.  The Curie temperature is named after Pierre Curie,
+who showed that magnetism disappears above a critical temperature. Above
+\( T_c \) thermal energy disrupts the tendency toward magnetic dipole
+alignment, and materials become just weakly magnetic.
+
+The \defn{Ising model}%
+\index{Ising model}
+is a simple model of a ferromagnet's domain alignment due to energy and
+heat.  The model describes the tendency for neighboring atoms to align
+their magnetic fields with each other or with an external magnetic
+field.  The Ising model exhibits a \defn{phase transition}%
+\index{phase transition}
+in the magnetization, a dramatic change between differently ordered
+magnetic states as a parameter passes through a critical value.
+Moreover, the \( 2 \)-dimensional Ising model is one of the most
+important theoretical statistical mechanical models.  As with all
+mathematical models, the aim is to find the simplest framework that
+exhibits important properties of the physical system.  With just the
+simple elements of binary variables on a regular grid, the Ising model
+exhibits phase transitions.
+
+The Ising model is a lattice model of atomic magnetic dipoles aligned up
+or down in some fixed direction.  A \( 1 \)-dimensional Ising model
+pictures dipoles regularly spaced along a line.  A \( 2 \)-dimensional
+Ising model is a square lattice, and a \( 3 \)-dimensional Ising model
+is a cubic lattice.  Each atom interacts with its nearest neighbors. The
+goal of the model is to find \( T_c \).  Interestingly, the \( 1 \)-dimensional
+Ising model does not have a phase transition, first proved by Ernst
+Ising in 1925.  A 1944 result of Lars Onsager gives a relation for the
+exact value for the critical temperature in the \( 2 \)-dimensional
+Ising model:
+\[
+    \frac{\text{k}_{\text{Boltz}} T_c}{J} = \frac{2}{\log(1 + \sqrt{2})}
+    \approx 2.269
+\] where \( \text{k}_{\text{Boltz}} \) is the Boltzmann constant from
+statistical mechanics and \( J \) is a proportionality constant for the
+energy of a dipole alignment.
+
+For definiteness for this application of the Metropolis algorithm,
+assume a planar square lattice with \( N^2 \) sites.  An \( N \times N \)
+matrix represents the square lattice, the first row at the top, and the \(
+N \)th row at the bottom, the first column at the left, the \( N \)th
+column at the right.  At each lattice site \( (i,j) \), there is a \emph
+{spin} represented by \( \omega_{i,j} = \pm 1 \).  A configuration is a
+matrix of spins, \( \omega = (\omega_ {1,1}, \omega_{1,2}, \dots, \omega_
+{N,N}) \).%
+\index{configuration}
+Define \( \Omega \) as the set of all possible configurations so \(
+\card{\Omega} = 2^{N^2} \).  The magnetic energy (also called the
+Hamiltonian) of a configuration is
+\[
+    E(\omega) = -J \sum\limits_{i, j=1}^{N} \sum\limits_{k=1}^4 \omega_{i,
+    j} \omega_{\left\langle i,j \right\rangle[k]} - H \sum\limits_{i=1}^N
+    \omega_i
+\] where \( J > 0 \) is the nearest-neighbor affinity (a proportionality
+constant with units of energy for the strength of the binding between
+neighbors), \( H \ge 0 \) represents the external magnetic field and \(
+\langle i, j \rangle \) indicates the set of \( 4 \) sites that are
+periodic nearest neighbors, sites in the lattice with a horizontal or
+vertical bond.  For the top row with \( i = 1 \), periodic means \(
+\left\langle 1, j \right\rangle = \set{(2,j), (1, j-1), (N,j), (1, j+1)}
+\), interpreting periodically if \( j=1 \) or \( j=N \).  Similarly for
+the bottom row, and the leftmost and rightmost columns.  The periodic
+boundary conditions mean that boundary sites are not treated differently
+than interior sites and make the finite grid simulate an infinite grid.
+For purposes of the example, assume there is no external field, so \(
+H=0 \) and that \( J=1 \).
+
+The probability distribution of spin configurations is proportional to
+the \defn{Boltzmann weight}%
+\index{Boltzmann weight}
+\(
+\operatorname{Boltz}
+(\omega) = \EulerE^{-E(\omega)/(\text{k}_{\text{Boltz}} T)} \) where \(
+\text{k}_{\text{Boltz}} \) is the Boltzmann constant and \( T \) is the
+absolute temperature, so \( \text{k}_{\text{Boltz}} T \) has units of
+energy.  The energy units are chosen to make \( \text{k}_{\text{Boltz}}
+T_C = \frac{2}{\log(1 + \sqrt{2})} \).  This section uses the
+combination \( \text{k}_{\text{Boltz}} T \) consistently for the heat
+energy at temperature \( T \) to emphasize the connection with
+statistical mechanics, with \( 0 \le \text{k}_{\text{Boltz}} T \le 10 \)
+for illustration. Given a configuration, the Boltzman weight is
+proportional to the probability that configuration will appear at
+temperature \( T \).  For completely ordered configurations with \(
+\omega_{i,j} \equiv +1 \) or \( \omega_{i,j} \equiv -1 \), \( E(\omega)
+= -J \cdot 4N^2 \) (low magnetization energy) and \(
+\operatorname{Boltz}
+(\omega) = \EulerE^{J \cdot 4N^2/(\text{k}_{\text{Boltz}} T)} \) is
+large (relatively higher probability).  For highly disordered
+configurations with \( \omega_{i,j} = \pm 1 \) distributed randomly, \(
+E(\omega) \approx 0 \) (higher magnetization energy) and \(
+\operatorname{Boltz}
+(\omega) \approx \EulerE^{-0/(\text{k}_{\text{Boltz}} T)} \approx 1 \)
+is small (relatively lower probability).
+
+For a configuration \( \omega \) the net spin is
+\[
+    M(\omega) = \sum\limits_{i=1}^N \omega_{i}.
+\] The \defn{magnetization}%
+\index{magnetization}
+at temperature \( T \) is \( \E{M}_T \) is the expected value of \( M(\omega)
+\) with respect to the Boltzmann weight:
+\begin{align*}
+    \E{M}_T &= \sum\limits_{\omega \in \Omega} M(\omega)
+    \operatorname{Boltz}
+    (\omega) \\
+    &= \frac{1}{z} \sum\limits_{\omega \in \Omega} M(\omega) \EulerE^{-E
+    (\omega)/(\text{k}_{\text{Boltz}} T)}.
+\end{align*}
+Recall that the denominator
+\[
+  z = \sum\limits_{\omega \in \Omega}
+           \EulerE^{-E(\omega)/(\text{k}_{\text{Boltz}} T)}
+\] is called the partition function.%
+\index{partition function}
+
+This model exhibits some general features.  At high temperatures there
+is no correlation between sites, states are essentially uniformly
+distributed and hence \( \E{M}_T \) is near zero.  This highly
+disordered configuration is not magnetic.  Lowering the temperature to a
+critical value called the Curie temperature \( T_c \), spontaneous
+magnetization occurs.  The model goes to one of the highly ordered state
+of all \( +1 \) or all \( -1 \) spins.  See Figure~%
+\ref{fig:isingmodel:phasediagram} for a schematic diagram of the phase
+transition.  The Curie temperature is a critical temperature below which
+sites influence each other at long distances.  It is impractical to
+directly compute the expected magnetization since the number of
+configurations is too large.  Even for \( N=5 \), to directly compute
+the magnetization requires \( 2^{25} \) matrices with \( 25 \) entries,
+over \( 838 \) million values.
+
+\begin{figure}
+    \centering
+\begin{asy}
+import graph;
+
+size(5inches);
+
+real myfontsize = 12;
+real mylineskip = 1.2*myfontsize;
+pen mypen = fontsize(myfontsize, mylineskip);
+defaultpen(mypen);
+
+real Tc = 2;
+
+real mplus(real x) {return (Tc - x)^(1/8);}
+real mminus(real x) {return -mplus(x);}
+
+draw(graph(mplus, 0, Tc), red+linewidth(2));
+draw(graph(mminus, 0, Tc), red+linewidth(2));
+draw((Tc,0)--(Tc+2,0), red+linewidth(2));
+draw((Tc,-1)--(Tc,+1), dotted);
+
+xaxis("Temperature", xmin=0, xmax=4.5, Arrow); 
+yaxis("Magnetization", ymin=-1.5, ymax=1.5, Arrows); 
+
+label("All $+1$", (0,mplus(0)), NE);
+label("All $-1$", (0,mminus(0)), SE);
+label("$T_c$", (Tc,0), SE);
+\end{asy}
+    \caption{Schematic magnetic phase diagram for the Ising model.}%
+    \label{fig:isingmodel:phasediagram}
+\end{figure}
+
+\subsection*{The Metropolis Algorithm and the Ising Model}
+
+Since direct calculation is unfeasible, the goal is to apply the
+Metropolis algorithm to the Ising model to find \( T_c \).  To do that,
+run the Markov chain Monte Carlo method at different temperatures to
+find the average magnetization as a function of temperature to find
+where the phase change occurs. Figure~%
+\ref{fig:isingmodel:isingbelowtc} and Figure~%
+\ref{fig:isingmodel:isingabovetc} are snapshots of applying the
+Metropolis algorithm to the Ising model. Figure~%
+\ref{fig:isingmodel:isingbelowtc} shows large areas of consistent
+magnetization after \( 500{,}000 \) Markov chain steps started from a
+random configuration at a normalized temperature \( 2.2 < T_c \).
+Figure~%
+\ref{fig:isingmodel:isingbelowtc} appears random even after \( 50{,}000{,}000
+\) Markov chain steps started from a random configuration at a
+temperature \( 5.0 > T_c \).
+
+\begin{figure}
+    \centering
+        \includegraphics[scale=0.50]{isingR_N100_T22_Step50}
+        \caption{A \( 100 \times 100 \) Ising model at \( T = 2.2 \)
+        after \( 500{,}000 \) steps.}%
+        \label{fig:isingmodel:isingbelowtc}
+\end{figure}
+\begin{figure}      
+        \includegraphics[scale=0.50]{isingR_N100_T5_Step5000}
+        \caption{A \( 100 \times 100 \) Ising model at \( T = 5.0 \)
+        after \( 50{,}000{,}000 \) steps.}%
+        \label{fig:isingmodel:isingabovetc}
+\end{figure}
+
+The key idea behind the algorithm is to emphasize the low energy subset
+of configurations and discount the rest.  The Metropolis algorithm%
+\index{Metropolis algorithm}
+takes a random walk through the configuration space, visiting more
+frequently occurring spin configurations more often.  In the words of
+the original Metropolis algorithm paper:  ``Instead of choosing
+configurations randomly, then weighting them with \( \EulerE^{-E/(\text{k}_
+{\text{Boltz}} T)} \), instead choose configurations with probability \(
+\EulerE^{-E/(\text {k}_{\text{Boltz}} T)} \) and weight them evenly''.
+The Metropolis algorithm for the Ising model proceeds as follows:
+\begin{enumerate}
+    \item
+        Visit all lattice sites \( (i, j) \) in some deterministic
+        order. For example, visit across the first row, then across the
+        second row, and so on to the last row.
+    \item
+        As each site is visited, calculate the change in energy that
+        would result from flipping the spin at the selected site.  If \(
+        \omega \) is the visited configuration and \( \omega' \) is the
+        configuration with the flipped spin at the visited site, then
+        \[
+            \Delta E = E(\omega') - E(\omega) = -2J (\omega'_{(i,j)} -
+            \omega_{(i,j)}) \sum\limits_{k=1}^4\omega_{\left\langle i,j
+            \right\rangle[k]}
+        \] where the sum is only over the four nearest neighbors of the \(
+        (i, j) \) site.  The computational cost of updating a site is
+        both small and independent of the size of the lattice.
+    \item
+        The acceptance rule is: if energy increases, \( E(\omega') > E(\omega)
+        \) or equivalently \(
+        \operatorname{Boltz}
+        (\omega') <
+        \operatorname{Boltz}
+        (\omega') \), let \( \omega^{\star} = \omega' \) with acceptance
+        probability
+        \[
+            \frac{%
+            \operatorname{Boltz}
+            (\omega')}{%
+            \operatorname{Boltz}
+            (\omega)} = \EulerE^{-\Delta E/\text{k}_{\text{Boltz}} T}.
+        \]
+    \item
+        Otherwise, energy decreases, so accept the change, \( \omega^{\star}
+        = \omega' \).
+\end{enumerate}
+Verifying the Markov chain of configuration changes is irreducible and
+aperiodic is routine.
+
+The alternative Glauber dynamics algorithm%
+\index{Glauber dynamics algorithm}
+(or in a different context the \emph{random chain algorithm}%
+\index{random chain algorithm}%
+) is:
+\begin{enumerate}
+    \item
+        The visitation rule between configurations is to pick a lattice
+        site \( (i, j) \) uniformly at random from \( i, j = 1, 2, 3,
+        \dots, N \).
+    \item
+        As each site is visited, calculate the change in energy that
+        would result from flipping the spin at the selected site.  If \(
+        \omega \) is the visited configuration and \( \omega' \) is the
+        configuration with the flipped spin at the visited site, then
+        \[
+            \Delta E = E(\omega') - E(\omega) = -2J (\omega'_{(i,j)} -
+            \omega_{(i,j)}) \sum\limits_{k=1}^4\omega_{\left\langle i,j
+            \right\rangle[k]}
+        \] where the sum is only over the four nearest neighbors of the \(
+        (i, j) \) site.  The computational cost of updating a site is
+        both small and independent of the size of the lattice.
+    \item
+        The current configuration \( \omega \) becomes the flipped site
+        configuration \( \omega' \) with acceptance probability
+        \[
+            \frac{\EulerE^{-\Delta E/\text{k}_{\text{Boltz}} T}}{1 +
+            \EulerE^{-\Delta E/\text{k}_{\text{Boltz}} T}}.
+        \]
+    \item
+        Otherwise, \( \omega^{\star} = \omega \).
+\end{enumerate}
+Verifying the Markov chain of configuration changes is irreducible and
+aperiodic is routine.
+
+Each algorithm has advantages and disadvantages.  For the Metropolis
+algorithm at low temperatures unfavorable flips are rare, resulting in a
+(nearly) deterministic flip rule along a deterministic path.  This can
+result in the algorithm getting trapped in patterns in the lattice.  On
+the other hand, with random sampling of sites in the Glauber algorithm,
+taking \( 10{,}000 \) steps on a \( 100 \times 100 \) lattice will miss
+about \( 3 {,}679 = 10{,}000/\EulerE \) sites, see the exercises.
+Therefore, it takes more steps than the size of the lattice to ensure
+visiting all sites.  Also, the acceptance probability in the Glauber
+algorithm is less than the acceptance probability in the Metropolis
+algorithm, see the exercises.  So the Glauber algorithm converges more
+slowly than the Metropolis algorithm. The survey article by Diaconis and
+Saloff
+\cite{DIACONIS199820} presents estimates on rates of convergence
+indicating slow convergence for the Ising model algorithms considered
+here.
+
+The two scripts below illustrate the global approach to the Ising model
+and the Monte Carlo Markov chain method.  The script \texttt{isingDist.R}
+calculates the entire configuration space, the individual energy of each
+configuration and the partition function.  However it is only practical
+for \( N = 2, 3, 4 \), not refined enough to demonstrate the phase
+transition.  The second script \texttt{isingMetropolis.R} illustrates the
+Monte Carlo Markov chain approach.  The script directly implements the
+Metropolis method above but is not general.  For a general
+approach, see the R package \texttt{IsingSampler}
+\cite{epskamp20} and for another implementation in Python, see
+\cite{schlusser18}.
+
+The comprehensive and very readable survey article
+\cite{hayes21} provides interactive graphics for comparing the
+Metropolis and Glauber algorithms directly, mixing the visitation and
+acceptance rules for the Metropolis and Glauber algorithms, using
+different visitation rules for the Metropolis algorithm, and testing the
+effects of different initial and boundary conditions.  The article also
+has figures for the Boltzman weight function at various temperatures,
+comparison of the acceptance functions, comparisons of rates of
+convergence, and explanations for the growth of shapes in the graphics.
+Finally, the article has a well-researched history of the Metropolis and
+Glauber algorithms.
+
+%% https://rajeshrinet.github.io/blog/2014/ising-model/
+%% https://github.com/RaewynD/IsingModel/blob/master/lattice.py
+
+%% https://criticathink.wordpress.com/2018/07/15/ising-model-simulation-in-r-using-the-metropolis-monte-carlo-algorithm/
+%% https://cran.r-project.org/web/packages/IsingSampler/index.html
+%% https://tanyaschlusser.github.io/posts/mcmc-and-the-ising-model/
+
+\visual{Section Starter Question}{../../../../CommonInformation/Lessons/question_mark.png}
+\section*{Section Ending Answer}
+
+A phase transition is dramatic change in state as a parameter passes
+through a critical value.  In physical and chemical systems, the
+transition occurs from the addition or removal of energy, usually in the
+form of heat, but it can also result from pressure changes or other
+causes.  Examples of phase transitions are the freezing of water into
+ice, or the reverse melting, the vaporization of water to steam or the
+reverse condensation.  Biological system exhibit phase transitions at
+the molecular, cellular, and even the organism level.  In card-shuffling
+the rapid transition from relatively ordered to completely disordered
+after \( O(n \log n) \) shuffles is an example of a mathematical phase
+transition.
+
+\subsection*{Sources} Ideas about the Ising model and the associated
+Metropolis algorithm are adapted from
+\cite{hayes19, hayes21, richey10, schlusser18}. The exercises are
+inspired by
+\cite{hayes21}.
+
+\nocite{}
+\nocite{}
+
+\hr
+
+\visual{Algorithms, Scripts, Simulations}{../../../../CommonInformation/Lessons/computer.png}
+\section*{Algorithms, Scripts, Simulations}
+
+\subsection*{Algorithm}
+
+\begin{algorithm}
+  \DontPrintSemicolon
+  \KwData{Dimension \( N \)}
+  \KwResult{Plot of magnetization versus normalized temperature near \(
+    T_c \)}
+  
+  \SetKwProg{Fn}{function}{}{}
+  \SetKwFunction{allBinarySeq}{allBinarySeq}
+  \SetKwFunction{allConfigs}{allConfigs}
+  \SetKwFunction{energy}{energy}
+  \SetKwFunction{allEnergies}{allEnergies}
+  \SetKwFunction{boltzWeight}{boltzWeight}
+  \SetKwFunction{netMag}{netMag}
+  \SetKwFunction{boltzDist}{boltzDist}
+  \SetKwFunction{partitionFunct}{partitionFunct}
+  
+  \Fn{allBinarySeq(N)}{creates all \( 2^N \) combinations of \( \pm
+  1 \) over \( N \) places\;}
+  \Fn{allConfigs(N)}{creates a list of all possible square
+  configurations of \( \pm 1 \) of size \( N \times N \) using
+  \allBinarySeq{N*N}\;}
+  \Fn{energy(config)}{computes magnetization energy\;}
+  \Fn{allEnergies}{applies energy function across list of all
+  energies\;}
+  \Fn{boltzWeight(energy, kTemp)}{computes \(\EulerE^{energy*
+    kTemp} \)\;}
+  \Fn{netMag(config)}{computes net magnetization\;}
+  \Fn{boltzDist}{computes list of all \boltzWeight{energy, kTemp}\;}
+  \Fn{partitionFunct(configurations, kTemp )}{computes sum of all
+  energies using \boltzDist{configurations, kTemp}\;}
+  \BlankLine\;
+
+  Set \( J \leftarrow 1 \)\;
+  Set \( N \leftarrow 3 \)\;
+  With \allConfigs{N}, make a list of all configurations of size \(
+  N \times N \)\;
+  \BlankLine\;
+  Set number of normalized temperatures to compute\;
+  Set a list of normalized temperatures of that
+  length from \( (2, 2.5) \) covering the critical value of \( T_c = 2.269 \) when
+  \( J = 1 \)\;
+  Compute the magnetization over all configurations for each of the
+  normalized temperatures\;
+  Plot the magnetization as a function of normalized temperature\;
+\caption{Ising model for magnetization for sizes \( 2, 3, 4\).}  
+\end{algorithm}
+
+\begin{algorithm}
+  \DontPrintSemicolon
+  \KwData{Dimension \( N \), normalized temperature, number of sweeps}
+  \KwResult{Plot of magnetization after many steps of the Metropolis algorithm}
+
+  \SetKwProg{Fn}{function}{}{}
+  \SetKwFunction{randomConfig}{randomConfig}
+  \SetKwFunction{boltzWeight}{boltzWeight}
+  \SetKwFunction{surroundNeighbors}{surroundNeighbors}
+  \SetKwFunction{sweepMetropolis}{sweepMetropolis}
+  \SetKwFunction{Unif}{Unif}
+
+  \Fn{Unif(n)}{creates a sample of \(n\) uniform random variables from \((0,1)
+  \)}
+  \Fn{randomConfig(N)}{creates a random \( N \times N \) configuration of
+    \( \pm 1 \)}
+  \Fn{boltzWeight(energy, kTemp)}{computes \(\EulerE^{-energy/
+      kTemp} \)\;}
+  \Fn{surroundNeighbors(site)}{find the \( 4 \) periodic surrounding
+    neighbors of \( site \)}
+  \Fn{sweepMetropolis(config, N)}{
+    \For{\(x \leftarrow 1:N \)} {
+      \For{ \( y \leftarrow 1:N \)} {
+        \(configAtSite  \leftarrow config[ x, y ] \)\;
+          \(configPrimeAtSite  \leftarrow configAtSite * (-1) \)\;
+          \( neigh  \leftarrow \surroundNeighbors{site} \)\; 
+          Compute \( deltaEnergy \) using \( neigh \) \; 
+          \uIf {\( Unif(1) < \min(1, boltzWeight(deltaEnergy, kTemperature)) \)}{
+              \( config \leftarrow configPrime \)\;}
+          }
+      }
+   }
+    
+  
+  \BlankLine\;
+  Set \( J \leftarrow 1 \),  \( kTemp \),  \( N \),  \(mcmcSteps\)\;
+  Choose random configuration with \randomConfig{N}\;
+  \For{\( 1:mcmcSteps \)}{
+    \( config \leftarrow \) \sweepMetropolis{config, N}\;
+  }
+  Plot image of resulting configuration
+  \caption{Metropolis algorithm applied to Ising model.}
+\end{algorithm}
+
+\subsection*{Scripts}
+
+\input{isingmodel_scripts}
+
+\hr
+
+\visual{Problems to Work}{../../../../CommonInformation/Lessons/solveproblems.png}
+\section*{Problems to Work for Understanding}
+
+\renewcommand{\theexerciseseries}{}
+\renewcommand{\theexercise}{\arabic{exercise}}
+
+\begin{exercise}
+    Show that with random sampling of sites, taking \( 10{,}000 \) steps
+    on a \( 100 \times 100 \) lattice will miss about \( 3{,}679 = 10{,}000/\EulerE
+    \) sites.
+\end{exercise}
+\begin{solution}
+    With \( n \) sites, the chance of missing a site is \( 1 - \frac{1}{n}
+    \).  In \( n \) iterations of the selection, the chance of missing
+    the site is \( (1- \frac{1}{n})^n \approx 1/\EulerE \) for \( n \)
+    large.  Among \( n \) sites there will be approximately \( 1/\EulerE
+    \cdot n \) sites missed.
+\end{solution}
+
+\begin{exercise}
+    With the nearest neighbor energy model, show that \( \Delta E \) can
+    only have the values \( -16, -8, 0, +8, +16 \).  (Use the convention
+    that \( J = 1 \).)
+\end{exercise}
+\begin{solution}
+    \[
+        \Delta E = E(\omega') - E(\omega) = -2J (\omega'_{(i,j)} -
+        \omega_{(i,j)}) \sum\limits_{k=1}^4\omega_{\left\langle i,j
+        \right\rangle[k]}
+    \] where the sum is only over the four nearest neighbors of the \( (i,
+    j) \) site.  The difference \( (\omega'_{(i,j)} - \omega_{(i,j)}) =
+    \pm 2 \).  The sum over the four nearest neighbors will be \( \pm 4 \)
+    if all \( 4 \) neighbors have the same sign, \( \pm 2 \) if all \( 3
+    \) neighbors have the same sign, and \( 1 \) is opposite, and \( 0 \)
+    if \( 2 \) of the neighbors have one sign, and the other \( 2 \) are
+    opposite.  Then \( \Delta E \) can only have the values \( -16, -8,
+    0, +8, +16 \).
+\end{solution}
+
+\begin{exercise}
+    Compare the Metropolis and Glauber acceptance functions by drawing
+    the graphs of the acceptance probabilities over the range of energy
+    changes \( -17 \le \Delta E \le 17 \), one plot with the two
+    functions for each of \( \text{k}_{\text{Boltz}} T = 10.0, 2.27,
+    1.0, and 0.1 \).  Draw a dot on each graph at the possible values of
+    \( \Delta T = -16, -8, 0, +8, +16 \)
+\end{exercise}
+\begin{solution}
+
+\begin{asy}
+import graph;
+
+size(5inches, IgnoreAspect);
+
+real myfontsize = 12;
+real mylineskip = 1.2*myfontsize;
+pen mypen = fontsize(myfontsize, mylineskip);
+defaultpen(mypen);
+
+real E(real DeltaT, real kBoltzT) { return exp(-DeltaT/kBoltzT);}
+real Met(real DeltaT, real kBoltzT)
+    { return min(1, E(DeltaT, kBoltzT)); }
+real Glaub(real DeltaT, real kBoltzT)
+    { return E(DeltaT, kBoltzT)/(1 + E(DeltaT, kBoltzT)); }
+
+real[] DE = {-16, -8, 0, 8, 16};
+
+picture p10 = new picture;
+size(p10, 2inches, 2inches, IgnoreAspect);
+
+real M10(real DeltaT) { return Met(DeltaT, 10); }
+real G10(real DeltaT) { return Glaub(DeltaT, 10); }
+
+draw(p10, graph(M10, -17, 17), red+1bp);
+draw(p10, graph(G10, -17, 17), blue+1bp);
+for (int i=0; i<5; ++i) {
+  dot(p10, (DE[i], M10(DE[i])), red+3bp);
+  dot(p10, (DE[i], G10(DE[i])), blue+3bp);
+}
+
+xaxis(p10, "$\Delta T$", xmin=-17, xmax=17, RightTicks); 
+yaxis(p10, "Probability", ymin=0, ymax=1, XEquals(-17), Ticks); 
+
+picture pTc = new picture;
+size(pTc, 2inches, 2inches, IgnoreAspect);
+
+real MTc(real DeltaT) { return Met(DeltaT, 2.27); }
+real GTc(real DeltaT) { return Glaub(DeltaT, 2.27); }
+
+draw(pTc, graph(MTc, -17, 17), red+1bp);
+draw(pTc, graph(GTc, -17, 17), blue+1bp);
+for (int i=0; i<5; ++i) {
+  dot(pTc, (DE[i], MTc(DE[i])), red+3bp);
+  dot(pTc, (DE[i], GTc(DE[i])), blue+3bp);
+}
+
+xaxis(pTc, "$\Delta T$", xmin=-17, xmax=17, RightTicks); 
+yaxis(pTc, "Probability", ymin=0, ymax=1, XEquals(-17), Ticks); 
+
+picture p1 = new picture;
+size(p1, 2inches, 2inches, IgnoreAspect);
+
+real M1(real DeltaT) { return Met(DeltaT, 1); }
+real G1(real DeltaT) { return Glaub(DeltaT, 1); }
+
+draw(p1, graph(M1, -17, 17), red+1bp);
+draw(p1, graph(G1, -17, 17), blue+1bp);
+for (int i=0; i<5; ++i) {
+  dot(p1, (DE[i], M1(DE[i])), red+3bp);
+  dot(p1, (DE[i], G1(DE[i])), blue+3bp);
+}
+
+xaxis(p1, "$\Delta T$", xmin=-17, xmax=17, RightTicks); 
+yaxis(p1, "Probability", ymin=0, ymax=1, XEquals(-17), Ticks); 
+
+picture p01 = new picture;
+size(p01, 2inches, 2inches, IgnoreAspect);
+
+real M01(real DeltaT) { return Met(DeltaT, 0.1); }
+real G01(real DeltaT) { return Glaub(DeltaT, 0.1); }
+
+draw(p01, graph(M01, -17, 17), red+1bp);
+draw(p01, graph(G01, -17, 17), blue+1bp);
+for (int i=0; i<5; ++i) {
+  dot(p01, (DE[i], M01(DE[i])), red+3bp);
+  dot(p01, (DE[i], G01(DE[i])), blue+3bp);
+}
+
+xaxis(p01, "$\Delta T$", xmin=-17, xmax=17, RightTicks); 
+yaxis(p01, "Probability", ymin=0, ymax=1, XEquals(-17), Ticks); 
+
+add(p10.fit(), (0,0), NW);
+add(pTc.fit(), (0,0), NE);
+add(p1.fit(), (0,0), SW);
+add(p01.fit(), (0,0), SE);
+\end{asy}
+\end{solution}
+
+\begin{exercise}
+    Show that for both the Metropolis and Glauber Markov chains, all
+    configurations are accessible, so the chain is irreducible.
+\end{exercise}
+\begin{solution}
+    For the Metropolis chains with the deterministic visitation rule,
+    consider configuration \( \omega \) which and configuration \(
+    omega' \) which differs in one site.  It is possible to go from \(
+    \omega \) to \( \omega' \) in at most \( N^2 \) steps, each of which
+    has non-zero probability (although it may be small!) of occurring.
+    That is, all configurations communicate, and the chain is
+    irreducible.
+
+    The same argument holds for the Glauber chain with the random
+    selection visitation rule, although the expected time to reach one
+    state from another is longer as in the coupon collectors problem,
+    and the probability of movement is smaller.
+\end{solution}
+
+\hr
+
+\visual{Books}{../../../../CommonInformation/Lessons/books.png}
+\section*{Reading Suggestion:}
+
+\bibliography{../../../../CommonInformation/bibliography}
+
+%   \begin{enumerate}
+%     \item
+%     \item
+%     \item
+%   \end{enumerate}
+
+\hr
+
+\visual{Links}{../../../../CommonInformation/Lessons/chainlink.png}
+\section*{Outside Readings and Links:}
+\begin{enumerate}
+    \item
+    \item
+    \item
+    \item
+\end{enumerate}
+
+\section*{\solutionsname} \loadSolutions
+
+\hr
+
+\mydisclaim \myfooter
+
+Last modified:  \flastmod
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-master: t
+%%% TeX-master: t
+%%% End:

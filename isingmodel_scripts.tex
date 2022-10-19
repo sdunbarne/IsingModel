@@ -1,0 +1,208 @@
+
+\begin{description}
+
+% \item[Geogebra] 
+
+% \link{  .ggb}{GeoGebra applet}
+
+\item[R] 
+
+\link{http://www.math.unl.edu/~sdunbar1/ising234.R}{R script for
+  complete Ising model.}
+
+\begin{lstlisting}[language=R]
+## WARNING: USE ONLY FOR N = 2, 3, 4
+
+allBinarySeq <- function(N) { # USE ONLY FOR N <= 4!!
+# list of N copies of -1, 1, simplify=FALSE returns lists, not vectors
+# then all possible combinations of \pm 1 over N places
+# resulting in data.frame of 2^N observations of N variables
+# transpose to make N by 2^N matrix
+# recast back to data.frame    
+    as.data.frame(
+        t(
+            expand.grid(
+                replicate(N, c(-1,1), simplify=FALSE)
+            )
+        )
+    )
+}
+
+allConfigs <- function(N) { # USE ONLY FOR N <= 4
+# returns LIST of all square configs
+    X <- allBinarySeq(N*N)
+    # data.frame of all 2^(N^2) observations over N^2 variables
+
+    data = lapply(X, matrix, nrow=N, ncol=N)
+}
+
+downConfig <- function(N) { matrix(-1,N,N) } # 1 of 2 lowest energy configs
+upConfig <- function(N) { matrix(1,N,N) }    # other lowest energy configs
+
+energy  <-  function(config, J=1) {  #pass in a MATRIX
+## J has units of energy
+## Returns a potential energy, negative, with lowest energy -4N^2    
+    N  <- NROW(config)
+
+    below  <- config[ c(2:N, 1), ]
+    left  <- config[ , c(N, 1:(N-1)) ]
+    above  <- config[c(N, 1:(N-1)), ]
+    right  <- config[ , c(2:N, 1) ]
+
+    nearNeighProd <- config * (below + left + above + right)
+    ## element-wise multiplication, note factorization of sum
+    
+    nrg  <- -J *sum(nearNeighProd)
+}
+
+allEnergies  <- function(configurations) { #list of configurations
+    nrgs  <-  lapply(configurations, energy, J)
+}
+
+boltzWeight <- function(nrg, kTemp) { exp(- nrg/kTemp) }
+
+netMag  <-  function(config) { abs( sum( config ) ) }
+
+boltzDist  <- function(configurations, kTemperature) {
+    bzs  <- unlist(
+        lapply(allEnergies(configurations), boltzWeight, kTemperature)
+    )
+}
+
+partitionFunc  <- function(configurations, kTemperature){ #list of energies
+        Z  <- sum( boltzDist(configurations, kTemperature) )
+}
+
+netSpin <- function(configurations, N) {   #list of configurations
+    lm <- lapply(configurations, matrix, N, N)
+    sm  <- abs( unlist( lapply(lm, sum) ) ) #absolute value sum of entries in each matrix
+    # unlist converts a list to a vector
+}
+
+magnetization  <- function(configurations, kTemperature) {
+    Z <- partitionFunc(configurations, kTemperature)
+    mag <- (1/Z) * sum(  netSpin(configurations, N) * boltzDist(configurations, kTemperature) )
+}
+
+J <- 1
+N  <- 3
+
+configs  <- allConfigs(N)
+
+nKTemperatures  <-  11
+Temperatures  <- seq(2,2.5, length=nKTemperatures)
+# surrounding the critical value kT_c/J = 2.269 when J=1
+
+m  <- rep(0, nKTemperatures)
+
+for (i in 1:nKTemperatures) {
+  m[i] = magnetization(configs, Temperatures[i])  
+  cat("T = ", Temperatures[i], "mag = ",  m[i], "\n" )
+}
+
+plot(Temperatures, m)
+
+\end{lstlisting}
+
+\item[R] 
+
+\link{http://www.math.unl.edu/~sdunbar1/isingMetropolis.R}{R script for
+  Ising Metropolis model.}
+
+\begin{lstlisting}
+randomConfig <- function(N) {
+  config <- matrix(2*sample(0:1, N*N, replace=TRUE)-1, N,N)
+}
+
+boltzWeight <- function(nrg, kBoltzT) { exp(- nrg/kBoltzT) }
+
+surroundNeighbors  <- function(site) {
+    belowSite  <- if (site[1] == N) c(1, site[2]) else c(site[1]+1, site[2])
+    leftSite   <- if (site[2] == 1) c(site[1], N) else c(site[1], site[2]-1)
+    aboveSite  <- if (site[1] == 1) c(N, site[2]) else c(site[1]-1, site[2])
+    rightSite  <- if (site[2] == N) c(site[1], 1) else c(site[1], site[2]+1)
+    neighbors  <- c(belowSite, leftSite, aboveSite, rightSite)
+}
+
+sweepMetropolis <- function(config) {
+  for (x in 1:N) {
+      for (y in 1:N) {
+          site <- c(x,y)
+          configAtSite  <- config[ site[1], site[2] ]
+          configPrimeAtSite  <- configAtSite * (-1)
+
+          neigh  <- surroundNeighbors( site ) 
+          deltaEnergy <- -2*J * (configPrimeAtSite - configAtSite)*
+              (config[ neigh[1], neigh[2] ] +
+               config[ neigh[3], neigh[4] ] +
+               config[ neigh[5], neigh[6] ]+
+               config[ neigh[7], neigh[8] ]
+              )
+          if ( runif(1) <= min(1, boltzWeight(deltaEnergy, kBoltzT)) )
+        {
+        config[ site[1], site[2] ]  <- configPrimeAtSite
+        }   
+
+    ## IF deltaEnergy < 0, so energy(configPrime) < energy(config)
+    ## so boltzWeight(deltaEnergy, kBoltzT) > 1,
+    ## THEN  runif(1) is certain to be less than p so certainly
+    ## change config to configPrime
+    ## ELSE deltaEnergy > 0, so 
+    ## energy(configPrime) > energy(config), so 
+    ## boltzWeight(deltaEnergy, kBoltzT) < 1,
+    ## so change on chance that runif(1) < p
+    }
+  }
+  return(config)
+}
+
+J  <- 1
+N  <- 100
+kBoltzT  <- 2.2
+mcmcSteps  <- 50
+
+config  <- randomConfig(N)
+
+for (i in 1:mcmcSteps ) {
+    config  <- sweepMetropolis(config)
+}
+
+image(1:N, 1:N, config[N:1, ], 
+      col=gray.colors(2),
+      xlab="", ylab="", xaxt="n", yaxt="n")
+## config[N:1, ] so that the plot corresponds to matrix order
+## i.e. first row of matrix is at top of plot, last row at bottom
+\end{lstlisting}
+
+% \item[Octave]
+
+% \link{http://www.math.unl.edu/~sdunbar1/    .m}{Octave script for .}
+
+% \begin{lstlisting}[language=Octave]
+
+% \end{lstlisting}
+
+% \item[Perl] 
+
+% \link{http://www.math.unl.edu/~sdunbar1/    .pl}{Perl PDL script for .}
+
+% \begin{lstlisting}[language=Perl]
+
+% \end{lstlisting}
+
+% \item[SciPy] 
+
+% \link{http://www.math.unl.edu/~sdunbar1/    .py}{Scientific Python script for .}
+
+% \begin{lstlisting}[language=Python]
+
+% \end{lstlisting}
+
+\end{description}
+
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
