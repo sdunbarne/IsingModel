@@ -781,8 +781,8 @@ add(p01.fit(), (0,0), SE);
 \end{exercise}
 \begin{solution}
     For the Metropolis chains with the deterministic visitation rule,
-    consider configuration \( \omega \) which and configuration \(
-    omega' \) which differs in one site.  It is possible to go from \(
+    consider configuration \( \omega \) and configuration \(
+    \omega' \) which differs in one site.  It is possible to go from \(
     \omega \) to \( \omega' \) in at most \( N^2 \) steps, each of which
     has non-zero probability (although it may be small!) of occurring.
     That is, all configurations communicate, and the chain is
@@ -794,6 +794,274 @@ add(p01.fit(), (0,0), SE);
     and the probability of movement is smaller.
 \end{solution}
 
+\begin{exercise}
+  A \( 30 \times 30 \) grid of squares contains \( 900 \) fleas, initially one flea per square.
+  When a bell is rung, each flea independently jumps to a horizontally or vertically
+  adjacent square at random.  For most squares, this is one of \(  4 \)
+  possibilities, except for fleas in one of the \( 116 \) squares
+  on the edge of the grid or at the corners.  For edge or corner squares a fleas will
+  jump to one of the \( 3 \) or \( 2 \) horizontally or vertically
+  adjacent squares.  (Note that this is different from the periodic
+  boundary conditions applied to the Ising model.)
+  What is the expected number of unoccupied squares after 50 rings of the bell?
+  Give your answer rounded to six decimal places.
+\end{exercise}
+\begin{solution}
+
+  An important feature of the puzzle is that all fleas move independently.
+  The problem has two challenges:
+  \begin{itemize}
+  \item   not all squares on a grid are created equal
+  since edge squares have fewer neighbors than interior squares, and
+  \item the process lasts for only \( 50 \) periods, so without further
+    investigiation, it is not apparent how close it is to a
+    stationary distribution.
+  \end{itemize}
+  The last item means that the solution will have to be computational.
+  
+  To build an intuition, assume instead all squares are
+  equal and that \( 50 \) can be considered a long period of time. Then 
+  a flea can be in one of the \( 30 \cdot 30/2=450 \) squares with
+  equal probability.  Why \( 450 \) and not \( 900 \)? To see this assume the
+  grid was painted in black and white like a chessboard. After \( 50 \)
+  moves a flea starting on a white square must be on a white square;
+  similarly a flea starting on a black square must be on a black
+  square.  This is similar to the reasoning in \( 1 \)-dimensional
+  random walk that after an even number of stpes, the walker is at an
+  even-numbered position.
+
+  What is the probability that some given square is empty after 50
+  moves?  There are 450 fleas that potentially independently can
+  occupy it. (Notice that any flea can reach any square in no more than
+  \( 60 \) jumps.)  Therefore the probability that a square is \emph{not}
+  occupied by any flea is \( ( 1 - 1/450)^{450} \approx \EulerE^{-1}
+  \approx 0.367470 \).
+  Taking expectations over all \( 900 \) fleas, the numer of empty
+  squares will be \( 900 \cdot ( 1 - 1/450)^{450} \approx 330.723 \).
+
+  However, the variance will be approximately \( \EulerE^{-1}  (1
+  - \EulerE^{-1})/N \approx \frac{0.23254}{N} \).  To get the answer
+  to six decimal places means the estimate will need to have at
+  least \(\sqrt{ \frac{0.23254}{N} } < 5 \times 10^{-7} \), or at least \( N
+  > 9.3 \times 10^{11} \) or more than \( 900 \cdot 9.3 \times 10^{11} 
+  = 8.4 \times 10^{14} \) flea moves.  Even with current modern processors
+  working in parallel,  simulation will take too long to achieve
+  the desired accuracy.  
+
+  Making \( 10{,}000 \) simulations of \( 50 \) steps each using the
+  following script gives a mean value of \( 331.8646  \).
+  \begin{lstlisting}[language=R]
+# set.seed(2023)                  #for testing, debugging
+N <- 30
+sims <- 10000
+
+inbounds <- function(x) { all(x >= 1) && all(x  <= N) }
+
+# Denote the location of a flea by (i, j). Here is a function
+# that gives us a _list_ of locations where a flea at (i,j) can jump.
+# The key element of this function is removing  potential locations that
+# are out of bounds.
+neighbors <- function(site) {
+ adjacencies <- list( c(1,0), c(-1,0), c(0, 1), c(0,-1) ) 
+ nbrs <- lapply(adjacencies, function(x) x + site)
+ realNbrs <- sapply(nbrs, inbounds)
+ nbrs[ realNbrs ] 
+}
+
+# Create two helper
+# functions that recode (i, j) position of a flea to its numeric index:
+site2i <- function(site) {
+   site[1] + (site[2] - 1) * N
+}
+
+i2site <- function(i) {
+   s <- c( ( (i-1) %% N + 1 ), ((i-1) %/% N + 1) )
+   return(s)
+}
+
+# Create a list, which in cell (i, j) recoded by site2i( (i,j) )
+# stores the target locations for a flea:
+NEI <- list()
+for (i in 1:N) {
+    for (j in 1:N) {
+       s <- site2i( c(i,j) )
+       NEI[[s]] <- neighbors( c(i,j) )
+    }
+}
+
+# The idea of the simulation is to  initialize it with N^2 fleas,
+# each starting on a different square, recoded by site2i
+fleas <- list()
+for (i in 1:N) {
+    for (j in 1:N) {
+       s <- site2i( c(i,j) )
+       fleas[[s]] <- c(i,j)
+    }
+}
+
+result <- numeric(sims)
+
+for (sim in 1:sims) {
+# Then each flea on a square moves randomly to one of
+# the locations it is allowed to occupy.
+    for (i in 1:N^2) {
+           f <- fleas[[i]]                  #find site flea is on now
+           s <- site2i(f)                   #recode to position in NEI
+           l <- length(NEI[[s]] )           #count adjacent sites
+           r <- sample(1:l, 1)              #choose one randomly
+           newSite <- NEI[[s]][[r]]         #fix newSite as the chosen  
+           fleas[[i]] <- newSite            #make that new site for flea i
+    }
+
+    # Create a matrix to record unoccuied squares.
+    # Initially it will say all sites are unoccupied (with a 1 for TRUE).
+    unoccupied <- matrix(1, N, N)
+    # If a site is occupied after a jump, change to 0 (FALSE).
+    for (i in 1:N^2) {
+       unoccupied[ i2site(fleas[[i]])[1], i2site(fleas[[i]])[2] ] <- 0
+    }
+    result[sim] <- sum(unoccupied)
+}
+
+mean(result)
+  \end{lstlisting}
+  
+  Using the following script, using floating point calculation and the
+  Markov chain nature of the problem, the probability to \( 6 \)
+  figures is \( 330.721 \).  (The script is a naive implementation
+  without consideration for efficiency.  It still runs quickly.)
+
+  \begin{lstlisting}[language=R]
+library(expm)
+N <- 30
+
+surroundNeighbors  <- function(site) {
+    belowSite  <- if (site[1] == N) NULL else c(site[1]+1, site[2])
+    leftSite   <- if (site[2] == 1) NULL else c(site[1], site[2]-1)
+    aboveSite  <- if (site[1] == 1) NULL else c(site[1]-1, site[2])
+    rightSite  <- if (site[2] == N) NULL else c(site[1], site[2]+1)
+    neighbors  <- rbind(belowSite, leftSite, aboveSite, rightSite)
+}
+
+site2i <- function(site) {
+   site[1] + (site[2] - 1) * N
+}
+
+i2site <- function(i) {
+   c( ( (i-1) %% N + 1 ), ((i-1) %/% N + 1) )
+}
+
+T = matrix(0, N^2, N^2)
+
+for (i in 1:N^2) {
+   nbrs <- surroundNeighbors( i2site(i) )
+   for (k in 1:nrow(nbrs)) {
+       nbr <- nbrs[k, ]
+       T[i, site2i(nbr)] <- 1/nrow(nbrs)
+   }
+}
+
+complementT50 <- 1 - T %^% 50
+emptyCells <- sum(apply(complementT50, 2, prod))
+emptyCells
+  \end{lstlisting}
+
+The following Julia scripts are efficient implementations of the
+simulation and theoretical analyses.
+
+\begin{lstlisting}
+const N = 30
+
+neighbors(c::Tuple{Int, Int}) =
+    filter!([c .+ d for d in ((1, 0), (-1, 0), (0, 1), (0, -1))]) do new_c
+        all(x -> 1 <= x <= N, new_c)
+    end
+# The key element of this function is removing new potential locations that
+# are out of bounds.
+
+const NEI = [neighbors((i, j)) for i in 1:N, j in 1:N]
+
+function sim(steps)
+    fleas = [(i, j) for i in 1:N, j in 1:N]
+    for _ in 1:steps
+        for i in eachindex(fleas)
+            fleas[i] = rand(NEI[fleas[i]...])
+            # note the splatting, expanding to multiple positional args
+        end
+    end
+    unoccupied = trues(N, N)
+    for c in fleas
+        unoccupied[c...] = false
+    end
+    return sum(unoccupied)
+end
+# The idea of the simulation is that we initialize it with 900 fleas, each
+# starting on a different square. Then each of them moves randomly to one of
+# the locations it is allowed to occupy. Finally, we count the number of
+# unoccupied squares.
+
+using Statistics
+using Random
+Random.seed!(1234);
+
+simres = [sim(50) for _ in 1:10_000]
+mean(simres)
+# Additionally compute the 90% confidence interval for our estimator using bootstrapping:
+quantile([mean(rand(simres, length(simres))) for _ in 1:10_000],
+         [0.05, 0.95])
+\end{lstlisting}
+
+\begin{lstlisting}
+  const N = 30
+
+neighbors(c::Tuple{Int, Int}) =
+    filter!([c .+ d for d in ((1, 0), (-1, 0), (0, 1), (0, -1))]) do new_c
+        all(x -> 1 <= x <= N, new_c)
+    end
+# The key element of this function is removing new potential locations that
+# are out of bounds.
+
+const NEI = [neighbors((i, j)) for i in 1:30, j in 1:N]
+
+# build a transition
+# probability matrix for our problem. For this we first create two helper
+# functions that recode (i, j) position of a flea to its numeric index:
+c2i(c::Tuple{Int, Int}) = c[1] + (c[2] - 1) * N
+i2c(i::Int) = reverse(divrem(i - 1, N)) .+ (1, 1)    
+
+
+# The location TRANS[i, j] encodes the probability that flea starting from
+# location i (encoded using linear index) ends up in location j. Therefore
+# the sum of probabilities in rows are all equal to one.
+const TRANS = zeros(N^2, N^2)
+for i in 1:N^2
+    ni = c2i.(neighbors(i2c(i)))
+    TRANS[i, ni] .= 1 / length(ni)
+end
+
+# the TRANS ^ 50 matrix encodes probability that flea starting from
+# location i ends up in location j after 50 moves. 1 .- TRANS ^ 50 is
+# a matrix, where TRANS[i, j] tells us the probability that flea
+# starting in position i is not in position j after 50 moves. Since
+# fleas move independently prod(1 .- TRANS^50, dims=1) gives a
+# probability for each cell that it is not occupied by any flea. Using
+# linearity of expectation again, we get that the expected number of
+# unoccupied cells is sum(prod(1 .- TRANS^50, dims=1)).
+
+round(sum(prod(1 .- TRANS^50, dims=1)), digits=6)
+\end{lstlisting}
+
+This problem is slightly adapted from the Project Euler Problem
+  213.  The solution and the Julia scripts are adapted from
+  \link{https://www.juliabloggers.com/flea-circus-for-the-new-year-celebration/}{Flea
+    circus for the New Year celebration}.  A detailed discussion of
+  the simulation approach is at
+  \link{https://stats.stackexchange.com/questions/2427/how-should-one-approch-project-euler-problem-213-flea-circus}{How
+    should one approach Project Euler problem 213?}.  Another solution
+  using multinomial distributions is at
+  \link{https://www.r-bloggers.com/2016/12/flea-circus/}{R-bloggers:
+    Flea Circus}
+\end{solution}
 \hr
 
 \visual{Books}{../../../../CommonInformation/Lessons/books.png}
@@ -830,6 +1098,7 @@ Last modified:  \flastmod
 
 %%% Local Variables:
 %%% mode: latex
+%%% TeX-master: t
 %%% TeX-master: t
 %%% TeX-master: t
 %%% TeX-master: t
